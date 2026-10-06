@@ -163,12 +163,19 @@ async def _retrain_once(state: State, force_retrain: bool = False) -> None:
                 _train_model(model, settings, hass_info, force_retrain=force_retrain)
             )
             state.model_train_tasks[model.id] = train_task
-            train_task.add_done_callback(
-                partial(
-                    lambda _task, model_id: state.model_train_tasks.pop(model_id, None),
-                    model.id,
-                )
-            )
+            train_task.add_done_callback(partial(_train_done, state, model.id))
+
+
+def _train_done(state: State, model_id: str, task: asyncio.Task) -> None:
+    """Forget a finished training task.
+
+    partial() binds the leading arguments, so the finished task arrives last.
+    """
+    state.model_train_tasks.pop(model_id, None)
+    if not task.cancelled():
+        # Already logged by _train_model; retrieving it here keeps asyncio from
+        # reporting "Task exception was never retrieved".
+        task.exception()
 
 
 async def _train_model(
