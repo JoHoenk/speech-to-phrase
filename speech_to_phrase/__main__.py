@@ -119,7 +119,11 @@ async def _retrain_loop(state: State, wait_seconds: float) -> None:
     """Wait and retrain on a loop."""
     while True:
         await asyncio.sleep(wait_seconds)
-        await _retrain_once(state)
+        try:
+            await _retrain_once(state)
+        except Exception:
+            # Keep the loop alive across HA outages and auth failures
+            _LOGGER.exception("Unexpected error during retrain loop")
 
 
 async def _retrain_once(state: State, force_retrain: bool = False) -> None:
